@@ -24,7 +24,6 @@ def gettimetypes(guid):
     session = XMLSession()
     url = 'http://api.aceproject.com/?%s' % params
     r = session.get(url)
-    #print(r.text)
 
 
 def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False):
@@ -89,8 +88,9 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
     else:
         print("Debug mode enabled, command not sent.")
 
+
 def getuserid(guid, username):
-    print('Getting userid of user {}'.format(username))
+    print('Getting userid of user "{}"'.format(username))
     param_dict = {'fct': 'getusers',
     'guid': guid,
     'FilterUserName': username,
@@ -101,6 +101,7 @@ def getuserid(guid, username):
     r = session.get(url)
     userid = r.xml.xpath('//USER_ID', first=True)
     return int(userid.text)
+
 
 def listprojects(guid, username):
     userid = getuserid(guid, username)
@@ -115,16 +116,28 @@ def listprojects(guid, username):
     params = urllib.parse.urlencode(param_dict)
     url = 'http://api.aceproject.com/?%s' % params
     r = session.get(url)
-    #print(r.text)
     ids = r.xml.xpath('//PROJECT_ID')
     names = r.xml.xpath('//PROJECT_NAME')
-    projects = list()
     for id, name in zip(ids, names):
-        projects.append({'id': id.text, 'project_name': name.text})
-    
-    for project in projects:
-        print('{:<5}: {}'.format(project['id'], project['project_name']))
-    #print(projects)
+        print('{:<5}: {}'.format(id.text, name.text))
+
+
+def listtasks(guid, projectid):
+    print('Listing tasks for projectid {}'.format(projectid))
+    param_dict = {'fct': 'gettasks',
+    'guid': guid,
+    'projectid': projectid,
+    'forcombo': 'true',
+    'format': 'ds'}
+    session = XMLSession()
+    params = urllib.parse.urlencode(param_dict)
+    url = 'http://api.aceproject.com/?%s' % params    
+    r = session.get(url)
+    ids = r.xml.xpath('//TASK_ID')
+    resumes = r.xml.xpath('//TASK_RESUME')
+    for id, resume in zip(ids, resumes):
+        print('{:<5}: {}'.format(id.text, resume.text))
+
 
 class ValidateAddTime(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
@@ -153,13 +166,15 @@ class ValidateAddTime(argparse.Action):
         values = {'projectid': projectid, 'taskid': taskid, 'date': date, 'time': time, 'comment': comment}
         setattr(args, self.dest, values)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aceproject command line interface v" + VERSION + " by Anders Winther Brandt 2018")
     parser.add_argument('-g', '--debug', help='Do not store any values', action="store_true")
     group = parser.add_mutually_exclusive_group(required = True)
-    group.add_argument('-t', '--addtime', nargs=5, metavar=('projectid', 'taskid', 'date', 'time', 'comment'), action=ValidateAddTime,
+    group.add_argument('-a', '--addhours', nargs=5, metavar=('projectid', 'taskid', 'date', 'time', 'comment'), action=ValidateAddTime,
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format dd-mm-yyyy. Comment: The comment line')
-    group.add_argument('-p', '--projects', nargs=1, metavar=('username'), help="Get a list a off active project for the given username")
+    group.add_argument('-p', '--projects', nargs=1, metavar=('username'), help="Get a list of active project for the given username")
+    group.add_argument('-t', '--tasks', nargs=1, metavar=('projectid'), help="Get a list of all tasks for a given project ID")
     args = parser.parse_args()
 
     print('Reading settings from config.txt...')
@@ -171,20 +186,17 @@ if __name__ == "__main__":
     ## LOGIN
     guid = login(account, user, password)
 
-    if args.addtime:
-        hours = args.addtime['time']
-        projectid = args.addtime['projectid']
-        comment = args.addtime['comment']
-        date = args.addtime['date']
-        taskid = args.addtime['taskid']
-        
-
-        ## GET TIME TYPES
+    if args.addhours:
+        hours = args.addhours['time']
+        projectid = args.addhours['projectid']
+        comment = args.addhours['comment']
+        date = args.addhours['date']
+        taskid = args.addhours['taskid']
         #gettimetypes(guid)
-        
-        ## ADD TIME
         saveworkitem(guid, date, hours, comment, projectid, taskid, args.debug)
     elif args.projects:
         listprojects(guid, args.projects[0])
+    elif args.tasks:
+        listtasks(guid, args.tasks[0])
 
     print('Done')
