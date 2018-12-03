@@ -195,10 +195,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aceproject command line interface v" + VERSION + " by Anders Winther Brandt 2018")
     parser.add_argument('-g', '--debug', help='Do not store any values', action="store_true")
     group = parser.add_mutually_exclusive_group(required = True)
-    group.add_argument('-a', '--addhours', nargs=5, metavar=('projectid', 'taskid', 'date', 'time', 'comment'), action=ValidateAddHours,
+    group.add_argument('-a', '--addhours', nargs=5, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format dd-mm-yyyy. Comment: The comment line')
-    group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('username'), help="Get a list of active project for the given username")
-    group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('projectid'), help="Get a list of all tasks for a given project ID")
+    group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
+    group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
     group.add_argument('-e', '--timeentries', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for the specified number of days for the specified username')
     args = parser.parse_args()
 
