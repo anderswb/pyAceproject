@@ -84,7 +84,7 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
 
     if not debug_mode:
         session = XMLSession()
-        r = session.get(url)
+        session.get(url)
     else:
         print("Debug mode enabled, command not sent.")
 
@@ -139,7 +139,31 @@ def listtasks(guid, projectid):
         print('{:<5}: {}'.format(id.text, resume.text))
 
 
-class ValidateAddTime(argparse.Action):
+def gettimeentries(guid, username, days=30):
+    print('Getting time entries for {} days.'.format(days))
+    userid = getuserid(guid, username)
+    param_dict = {'fct': 'GetTimeReport',
+    'guid': guid,
+    'View': 1,
+    'FilterMyWorkItems': 'False',
+    'FilterTimeCreatorUserId': userid,
+    'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
+    'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d'),
+    'format': 'ds'}
+    session = XMLSession()
+    params = urllib.parse.urlencode(param_dict)
+    url = 'http://api.aceproject.com/?%s' % params    
+    r = session.get(url)
+    dates = r.xml.xpath('//DATE_WORKED')
+    client_names = r.xml.xpath('//CLIENT_NAME')
+    project_names = r.xml.xpath('//PROJECT_NAME')
+    times = r.xml.xpath('//TOTAL')
+    comments = r.xml.xpath('//COMMENT')
+    for date, client_name, project_name, time, comment in zip(dates, client_names, project_names, times, comments):
+        print('{} | {} | {} | {} | {}'.format(date.text[0:10], client_name.text, project_name.text, time.text, comment.text))
+
+
+class ValidateAddHours(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         projectid, taskid, date, time, comment = values
         projectid = int(projectid)
@@ -171,10 +195,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aceproject command line interface v" + VERSION + " by Anders Winther Brandt 2018")
     parser.add_argument('-g', '--debug', help='Do not store any values', action="store_true")
     group = parser.add_mutually_exclusive_group(required = True)
-    group.add_argument('-a', '--addhours', nargs=5, metavar=('projectid', 'taskid', 'date', 'time', 'comment'), action=ValidateAddTime,
+    group.add_argument('-a', '--addhours', nargs=5, metavar=('projectid', 'taskid', 'date', 'time', 'comment'), action=ValidateAddHours,
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format dd-mm-yyyy. Comment: The comment line')
-    group.add_argument('-p', '--projects', nargs=1, metavar=('username'), help="Get a list of active project for the given username")
-    group.add_argument('-t', '--tasks', nargs=1, metavar=('projectid'), help="Get a list of all tasks for a given project ID")
+    group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('username'), help="Get a list of active project for the given username")
+    group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('projectid'), help="Get a list of all tasks for a given project ID")
+    group.add_argument('-e', '--timeentries', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for the specified number of days for the specified username')
     args = parser.parse_args()
 
     print('Reading settings from config.txt...')
@@ -198,5 +223,7 @@ if __name__ == "__main__":
         listprojects(guid, args.projects[0])
     elif args.tasks:
         listtasks(guid, args.tasks[0])
+    elif args.timeentries:
+        gettimeentries(guid, args.timeentries[0], int(args.timeentries[1]))
 
     print('Done')
