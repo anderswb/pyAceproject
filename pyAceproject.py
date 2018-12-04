@@ -158,22 +158,13 @@ def gettimeentries(guid, username, days=30):
     root = ET.fromstring(r)
     for child in root:
         date = child.attrib['DATE_WORKED'][0:10]
-        try:
-            client = child.attrib['CLIENT_NAME']
-        except KeyError:
-            client = '-'
-        project = child.attrib['PROJECT_NAME']
-        try:
-            task = child.attrib['TASK_RESUME']
-        except KeyError:
-            task = '-'
-        hours = child.attrib['TOTAL']
-        try:
-            comment = child.attrib['COMMENT']
-        except KeyError:
-            comment = '-'
+        client = child.attrib.get('CLIENT_NAME', '')
+        project = child.attrib.get('PROJECT_NAME', '')
+        task = child.attrib.get('TASK_RESUME', '')
+        hours = child.attrib.get('TOTAL', '')
+        comment = child.attrib.get('COMMENT', '')
         print('{} | {:<10} | {:<21} | {:<10} | {:<4} | {}'.format(date, client, project, task, hours, comment))
-        
+
 
 class ValidateAddHours(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
