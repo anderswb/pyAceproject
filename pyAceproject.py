@@ -1,4 +1,6 @@
 from requests_xml import XMLSession
+import requests
+import xml.etree.ElementTree as ET
 import urllib.parse
 from datetime import datetime, timedelta
 import argparse
@@ -149,19 +151,29 @@ def gettimeentries(guid, username, days=30):
     'FilterTimeCreatorUserId': userid,
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
     'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d'),
-    'format': 'ds'}
-    session = XMLSession()
+    'format': 'xml'}
     params = urllib.parse.urlencode(param_dict)
-    url = 'http://api.aceproject.com/?%s' % params    
-    r = session.get(url)
-    dates = r.xml.xpath('//DATE_WORKED')
-    client_names = r.xml.xpath('//CLIENT_NAME')
-    project_names = r.xml.xpath('//PROJECT_NAME')
-    times = r.xml.xpath('//TOTAL')
-    comments = r.xml.xpath('//COMMENT')
-    for date, client_name, project_name, time, comment in zip(dates, client_names, project_names, times, comments):
-        print('{} | {} | {} | {} | {}'.format(date.text[0:10], client_name.text, project_name.text, time.text, comment.text))
-
+    url = 'http://api.aceproject.com/?%s' % params
+    r = requests.get(url).content
+    root = ET.fromstring(r)
+    for child in root:
+        date = child.attrib['DATE_WORKED'][0:10]
+        try:
+            client = child.attrib['CLIENT_NAME']
+        except KeyError:
+            client = '-'
+        project = child.attrib['PROJECT_NAME']
+        try:
+            task = child.attrib['TASK_RESUME']
+        except KeyError:
+            task = '-'
+        hours = child.attrib['TOTAL']
+        try:
+            comment = child.attrib['COMMENT']
+        except KeyError:
+            comment = '-'
+        print('{} | {:<10} | {:<21} | {:<10} | {:<4} | {}'.format(date, client, project, task, hours, comment))
+        
 
 class ValidateAddHours(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
@@ -212,13 +224,8 @@ if __name__ == "__main__":
     guid = login(account, user, password)
 
     if args.addhours:
-        hours = args.addhours['time']
-        projectid = args.addhours['projectid']
-        comment = args.addhours['comment']
-        date = args.addhours['date']
-        taskid = args.addhours['taskid']
         #gettimetypes(guid)
-        saveworkitem(guid, date, hours, comment, projectid, taskid, args.debug)
+        saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'], args.debug)
     elif args.projects:
         listprojects(guid, args.projects[0])
     elif args.tasks:
