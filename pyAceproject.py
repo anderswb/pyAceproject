@@ -17,17 +17,6 @@ def login(account, username, password):
     return guid
 
 
-def gettimetypes(guid):
-    params = urllib.parse.urlencode({'fct': 'gettimetypes',
-    'guid': guid,
-    'timetypeid': 'NULL',
-    'sortorder': 'NULL',
-    'format': 'DS'})
-    session = XMLSession()
-    url = 'http://api.aceproject.com/?%s' % params
-    r = session.get(url)
-
-
 def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False):
     print('Adding time to worksheet...')
 
@@ -108,43 +97,44 @@ def getuserid(guid, username):
 def listprojects(guid, username):
     userid = getuserid(guid, username)
     print('Getting all active projects for user "{}" with id {}'.format(username, userid))
-    param_dict = {'fct': 'getprojects',
+    param_dict = {
+    'fct': 'getprojects',
     'guid': guid,
     'Filterassigneduserid': userid,
     'Filtercompletedproject': 'False',
     'SortOrder': 'PROJECT_ID',
-    'format': 'ds'}
-    session = XMLSession()
-    params = urllib.parse.urlencode(param_dict)
-    url = 'http://api.aceproject.com/?%s' % params
-    r = session.get(url)
-    ids = r.xml.xpath('//PROJECT_ID')
-    names = r.xml.xpath('//PROJECT_NAME')
-    for id, name in zip(ids, names):
-        print('{:<5}: {}'.format(id.text, name.text))
+    'format': 'xml'}
+    url = 'http://api.aceproject.com/?%s' % urllib.parse.urlencode(param_dict)
+    r = requests.get(url).content
+    root = ET.fromstring(r)
+    for child in root:
+        id = child.attrib.get('PROJECT_ID', '')
+        name = child.attrib.get('PROJECT_NAME', '')
+        print('{:<5} | {}'.format(id, name))
 
 
 def listtasks(guid, projectid):
     print('Listing tasks for projectid {}'.format(projectid))
-    param_dict = {'fct': 'gettasks',
+    param_dict = {
+    'fct': 'gettasks',
     'guid': guid,
     'projectid': projectid,
     'forcombo': 'true',
-    'format': 'ds'}
-    session = XMLSession()
-    params = urllib.parse.urlencode(param_dict)
-    url = 'http://api.aceproject.com/?%s' % params    
-    r = session.get(url)
-    ids = r.xml.xpath('//TASK_ID')
-    resumes = r.xml.xpath('//TASK_RESUME')
-    for id, resume in zip(ids, resumes):
-        print('{:<5}: {}'.format(id.text, resume.text))
+    'format': 'xml'}
+    url = 'http://api.aceproject.com/?%s' % urllib.parse.urlencode(param_dict)
+    r = requests.get(url).content
+    root = ET.fromstring(r)
+    for child in root:
+        id = child.attrib.get('TASK_ID', '')
+        resume = child.attrib.get('TASK_RESUME', '')
+        print('{:<5} | {}'.format(id, resume))
 
 
 def gettimeentries(guid, username, days=30):
     print('Getting time entries for {} days.'.format(days))
     userid = getuserid(guid, username)
-    param_dict = {'fct': 'GetTimeReport',
+    param_dict = {
+    'fct': 'GetTimeReport',
     'guid': guid,
     'View': 1,
     'FilterMyWorkItems': 'False',
@@ -152,12 +142,11 @@ def gettimeentries(guid, username, days=30):
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
     'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d'),
     'format': 'xml'}
-    params = urllib.parse.urlencode(param_dict)
-    url = 'http://api.aceproject.com/?%s' % params
+    url = 'http://api.aceproject.com/?%s' % urllib.parse.urlencode(param_dict)
     r = requests.get(url).content
     root = ET.fromstring(r)
     for child in root:
-        date = child.attrib['DATE_WORKED'][0:10]
+        date = child.attrib.get('DATE_WORKED', '----------')[0:10]
         client = child.attrib.get('CLIENT_NAME', '')
         project = child.attrib.get('PROJECT_NAME', '')
         task = child.attrib.get('TASK_RESUME', '')
