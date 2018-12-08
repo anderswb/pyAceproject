@@ -139,7 +139,8 @@ def gettimeentries(guid, username, days=30):
     'FilterMyWorkItems': 'False',
     'FilterTimeCreatorUserId': userid,
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
-    'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d')}
+    #'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d')}
+    'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
     print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
     print('Date       | Client     | Project               | Task       | Hour | Comment')
@@ -192,7 +193,7 @@ if __name__ == "__main__":
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format dd-mm-yyyy. Comment: The comment line')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
-    group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for the specified number of days for the specified username')
+    group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for all future entries and DAYS in the past, for the specified username. Eg. DAYS=10 will get all future entries and for the past 10 days.')
     args = parser.parse_args()
 
     verbose = args.verbose
