@@ -91,7 +91,7 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
 
 
 def getuserid(guid, username):
-    print('Getting userid {}'.format(username))
+    print('Getting userid for {}'.format(username))
     param_dict = {
     'guid': guid,
     'FilterUserName': username}
@@ -131,8 +131,8 @@ def listtasks(guid, projectid):
 
 
 def gettimeentries(guid, username, days=30):
-    print('Getting time entries for {} days.'.format(days))
     userid = getuserid(guid, username)
+    print('Getting time entries for {} days.'.format(days))
     param_dict = {
     'guid': guid,
     'View': 1,
@@ -141,6 +141,9 @@ def gettimeentries(guid, username, days=30):
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
     'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
+    print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
+    print('Date       | Client     | Project               | Task       | Hour | Comment')
+    print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
     for child in root:
         date = child.attrib.get('DATE_WORKED', '----------')[0:10]
         client = child.attrib.get('CLIENT_NAME', '')
@@ -148,7 +151,8 @@ def gettimeentries(guid, username, days=30):
         task = child.attrib.get('TASK_RESUME', '')
         hours = child.attrib.get('TOTAL', '')
         comment = child.attrib.get('COMMENT', '')
-        print('{} | {:<10} | {:<21} | {:<10} | {:<4} | {}'.format(date, client, project, task, hours, comment))
+        print('{} | {:<10.10} | {:<21.21} | {:<10.10} | {:<4.4} | {:<49.49}'.format(date, client, project, task, hours, comment))
+    print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
 
 
 class ValidateAddHours(argparse.Action):
