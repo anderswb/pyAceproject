@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import urllib.parse
 from datetime import datetime, timedelta
 import argparse
+import textwrap
 
 VERSION = '0.1'
 
@@ -121,10 +122,14 @@ def listprojects(guid, username):
     'Filtercompletedproject': 'False',
     'SortOrder': 'PROJECT_ID'}
     root = getetree('getprojects', param_dict)
+    print('+--------+------------------------------------------------------------------------------------------------------------+')
+    print('| ID     | Project name                                                                                               |')
+    print('+--------+------------------------------------------------------------------------------------------------------------+')
     for child in root:
         id = child.attrib.get('PROJECT_ID', '')
         name = child.attrib.get('PROJECT_NAME', '')
-        print('{:<5} | {}'.format(id, name))
+        print('| {:<6.6} | {:<106} |'.format(id, name))
+    print('+--------+------------------------------------------------------------------------------------------------------------+')
 
 
 def listtasks(guid, projectid):
@@ -134,10 +139,14 @@ def listtasks(guid, projectid):
     'projectid': projectid,
     'forcombo': 'true'}
     root = getetree('gettasks', param_dict)
+    print('+--------+------------------------------------------------------------------------------------------------------------+')
+    print('| ID     | Task name                                                                                                  |')
+    print('+--------+------------------------------------------------------------------------------------------------------------+')
     for child in root:
         id = child.attrib.get('TASK_ID', '')
         resume = child.attrib.get('TASK_RESUME', '')
-        print('{:<5} | {}'.format(id, resume))
+        print('| {:<6.6} | {:<106} |'.format(id, resume))
+    print('+--------+------------------------------------------------------------------------------------------------------------+')
 
 
 def gettimeentries(guid, username, days=30):
@@ -151,18 +160,28 @@ def gettimeentries(guid, username, days=30):
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
     'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
-    print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
-    print('Date       | Client     | Project               | Task       | Hour | Comment')
-    print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
+    print('+------------+------------+-----------------------+-----------+------+------------------------------------------------+')
+    print('| Date       | Client     | Project               | Task      | Hour | Comment                                        |')
+    print('+------------+------------+-----------------------+-----------+------+------------------------------------------------+')
+    wrapper = textwrap.TextWrapper(width=46)
     for child in root:
         date = child.attrib.get('DATE_WORKED', '----------')[0:10]
         client = child.attrib.get('CLIENT_NAME', '')
         project = child.attrib.get('PROJECT_NAME', '')
         task = child.attrib.get('TASK_RESUME', '')
         hours = child.attrib.get('TOTAL', '')
-        comment = child.attrib.get('COMMENT', '')
-        print('{} | {:<10.10} | {:<21.21} | {:<10.10} | {:<4.4} | {:<49.49}'.format(date, client, project, task, hours, comment))
-    print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
+        comment = child.attrib.get('COMMENT', '-')
+        comment_wrapped = wrapper.wrap(comment)
+        first_line = True
+        for comment_line in comment_wrapped:
+            if not first_line:
+                date, client, project, task, hours = ('', '', '', '', '')
+            
+            print('| {:<10.10} | {:<10.10} | {:<21.21} | {:<9.9} | {:<4.4} | {:<46.46} |'.format(date, client, project, task, hours, comment_line))
+            first_line = False
+            #else:
+            #    print('| {:<10.10} | {:<10.10} | {:<21.21} | {:<9.9} | {:<4.4} | {:<46.46} |'.format('', '', '', '', '', comment_line))
+    print('+------------+------------+-----------------------+-----------+------+------------------------------------------------+')
 
 
 class ValidateAddHours(argparse.Action):
