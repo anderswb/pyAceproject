@@ -14,14 +14,21 @@ def getetree(function, parameters):
     if 'format' not in parameters:
         parameters['format'] = 'xml'
     url = 'http://api.aceproject.com/?{}'.format(urllib.parse.urlencode(parameters))
-    r = requests.get(url).content
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print('Connectivity error. Returned exception:')
+        print(e)
+        print("Exiting!")
+        exit(1)
     if verbose:
         print('Parameters sent:')
         for k, v in parameters.items():
             if k == 'password':
                 v = '***'
             print(' - {: <15} {}'.format(k+':', v))
-    return ET.fromstring(r)
+    return ET.fromstring(r.content)
 
 
 def login(account, username, password):
@@ -32,6 +39,9 @@ def login(account, username, password):
     'password': password}
     root = getetree('login', param_dict)
     guid = root.find('row').get('GUID')
+    if not guid:
+        print('Failed to log in, exiting!')
+        exit(1)
     if verbose:
         print('Got guid: {}'.format(guid))
     return guid
@@ -139,7 +149,6 @@ def gettimeentries(guid, username, days=30):
     'FilterMyWorkItems': 'False',
     'FilterTimeCreatorUserId': userid,
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
-    #'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d')}
     'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
     print('-----------+------------+-----------------------+------------+------+--------------------------------------------------')
@@ -204,7 +213,6 @@ if __name__ == "__main__":
         user = f.readline().rstrip('\n') 
         password = f.readline().rstrip('\n') 
 
-    ## LOGIN
     guid = login(account, user, password)
 
     if args.addhours:
