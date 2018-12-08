@@ -1,4 +1,3 @@
-from requests_xml import XMLSession
 import requests
 import xml.etree.ElementTree as ET
 import urllib.parse
@@ -7,13 +6,34 @@ import argparse
 
 VERSION = '0.1'
 
+verbose = False
+
+
+def getetree(function, parameters):
+    parameters['fct'] = function
+    if 'format' not in parameters:
+        parameters['format'] = 'xml'
+    url = 'http://api.aceproject.com/?{}'.format(urllib.parse.urlencode(parameters))
+    r = requests.get(url).content
+    if verbose:
+        print('Parameters sent:')
+        for k, v in parameters.items():
+            if k == 'password':
+                v = '***'
+            print(' - {: <15} {}'.format(k+':', v))
+    return ET.fromstring(r)
+
+
 def login(account, username, password):
     print('Logging into account: \"{}\" using username: \"{}\"'.format(account, username))
-    url = 'http://api.aceproject.com/?fct=login&accountid={}&username={}&password={}&browserinfo=NULL&language=NULL&format=ds'.format(account, username, password)
-    session = XMLSession()
-    r = session.get(url)
-    item = r.xml.xpath('//GUID', first=True)
-    guid = item.text
+    param_dict = {
+    'accountid': account,
+    'username': username,
+    'password': password}
+    root = getetree('login', param_dict)
+    guid = root.find('row').get('GUID')
+    if verbose:
+        print('Got guid: {}'.format(guid))
     return guid
 
 
@@ -47,7 +67,7 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
     elif weekday == 6:
         hoursday['sat'] = hours
 
-    param_dict = {'fct': 'saveworkitem',
+    param_dict = {
     'guid': guid,
     'weekstart': weekstart,
     'projectid': projectid,
@@ -59,54 +79,38 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
     'hoursday5': hoursday['thu'],
     'hoursday6': hoursday['fri'],
     'hoursday7': hoursday['sat'],
-    'comments': comment,
-    'format': 'ds'}
+    'comments': comment}
 
     if taskid:
         param_dict['taskid'] = taskid
 
-    print('Parameters sent:')
-    for k,v in param_dict.items():
-        print(' - {: <13} {}'.format(k+':', v))
-
-    params = urllib.parse.urlencode(param_dict)
-
-    url = 'http://api.aceproject.com/?%s' % params
-
     if not debug_mode:
-        session = XMLSession()
-        session.get(url)
+        getetree('saveworkitem', param_dict)
     else:
         print("Debug mode enabled, command not sent.")
 
 
 def getuserid(guid, username):
-    print('Getting userid of user "{}"'.format(username))
-    param_dict = {'fct': 'getusers',
+    print('Getting userid {}'.format(username))
+    param_dict = {
     'guid': guid,
-    'FilterUserName': username,
-    'format': 'ds'}
-    session = XMLSession()
-    params = urllib.parse.urlencode(param_dict)
-    url = 'http://api.aceproject.com/?%s' % params
-    r = session.get(url)
-    userid = r.xml.xpath('//USER_ID', first=True)
-    return int(userid.text)
+    'FilterUserName': username}
+    root = getetree('getusers', param_dict)
+    userid = root.find('row').get('USER_ID')
+    if verbose:
+        print('Got userid {}'.format(userid))
+    return int(userid)
 
 
 def listprojects(guid, username):
     userid = getuserid(guid, username)
-    print('Getting all active projects for user "{}" with id {}'.format(username, userid))
+    print('Getting all active projects for user {} with id {}'.format(username, userid))
     param_dict = {
-    'fct': 'getprojects',
     'guid': guid,
     'Filterassigneduserid': userid,
     'Filtercompletedproject': 'False',
-    'SortOrder': 'PROJECT_ID',
-    'format': 'xml'}
-    url = 'http://api.aceproject.com/?%s' % urllib.parse.urlencode(param_dict)
-    r = requests.get(url).content
-    root = ET.fromstring(r)
+    'SortOrder': 'PROJECT_ID'}
+    root = getetree('getprojects', param_dict)
     for child in root:
         id = child.attrib.get('PROJECT_ID', '')
         name = child.attrib.get('PROJECT_NAME', '')
@@ -116,14 +120,10 @@ def listprojects(guid, username):
 def listtasks(guid, projectid):
     print('Listing tasks for projectid {}'.format(projectid))
     param_dict = {
-    'fct': 'gettasks',
     'guid': guid,
     'projectid': projectid,
-    'forcombo': 'true',
-    'format': 'xml'}
-    url = 'http://api.aceproject.com/?%s' % urllib.parse.urlencode(param_dict)
-    r = requests.get(url).content
-    root = ET.fromstring(r)
+    'forcombo': 'true'}
+    root = getetree('gettasks', param_dict)
     for child in root:
         id = child.attrib.get('TASK_ID', '')
         resume = child.attrib.get('TASK_RESUME', '')
@@ -134,17 +134,13 @@ def gettimeentries(guid, username, days=30):
     print('Getting time entries for {} days.'.format(days))
     userid = getuserid(guid, username)
     param_dict = {
-    'fct': 'GetTimeReport',
     'guid': guid,
     'View': 1,
     'FilterMyWorkItems': 'False',
     'FilterTimeCreatorUserId': userid,
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
-    'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d'),
-    'format': 'xml'}
-    url = 'http://api.aceproject.com/?%s' % urllib.parse.urlencode(param_dict)
-    r = requests.get(url).content
-    root = ET.fromstring(r)
+    'FilterDateTo': datetime.strftime(datetime.today(), '%Y-%m-%d')}
+    root = getetree('GetTimeReport', param_dict)
     for child in root:
         date = child.attrib.get('DATE_WORKED', '----------')[0:10]
         client = child.attrib.get('CLIENT_NAME', '')
@@ -159,7 +155,7 @@ class ValidateAddHours(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         projectid, taskid, date, time, comment = values
         projectid = int(projectid)
-        if taskid == "NA":
+        if taskid.upper() == "NA":
             taskid = None
         else:
             try:
@@ -186,13 +182,16 @@ class ValidateAddHours(argparse.Action):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aceproject command line interface v" + VERSION + " by Anders Winther Brandt 2018")
     parser.add_argument('-g', '--debug', help='Do not store any values', action="store_true")
+    parser.add_argument('-v', '--verbose', help='Print more information', action="store_true")
     group = parser.add_mutually_exclusive_group(required = True)
     group.add_argument('-a', '--addhours', nargs=5, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format dd-mm-yyyy. Comment: The comment line')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
-    group.add_argument('-e', '--timeentries', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for the specified number of days for the specified username')
+    group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for the specified number of days for the specified username')
     args = parser.parse_args()
+
+    verbose = args.verbose
 
     print('Reading settings from config.txt...')
     with open('.\\config.txt') as f:
@@ -204,13 +203,12 @@ if __name__ == "__main__":
     guid = login(account, user, password)
 
     if args.addhours:
-        #gettimetypes(guid)
         saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'], args.debug)
     elif args.projects:
         listprojects(guid, args.projects[0])
     elif args.tasks:
         listtasks(guid, args.tasks[0])
-    elif args.timeentries:
-        gettimeentries(guid, args.timeentries[0], int(args.timeentries[1]))
+    elif args.log:
+        gettimeentries(guid, args.log[0], int(args.log[1]))
 
     print('Done')
