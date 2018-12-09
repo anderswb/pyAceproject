@@ -96,7 +96,10 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
         param_dict['taskid'] = taskid
 
     if not debug_mode:
-        getetree('saveworkitem', param_dict)
+        root = getetree('saveworkitem', param_dict)
+        error_description = root.find('row').get('ErrorDescription')
+        if error_description:
+            print('Something went wrong when adding the time item, the following error message was returned from the server:\n"{}"'.format(error_description))
     else:
         print("Debug mode enabled, command not sent.")
 
