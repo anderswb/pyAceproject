@@ -175,13 +175,31 @@ def gettimeentries(guid, username, days=30):
         first_line = True
         for comment_line in comment_wrapped:
             if not first_line:
-                date, client, project, task, hours = ('', '', '', '', '')
-            
+                date, client, project, task, hours = ('', '', '', '', '')    
             print('| {:<10.10} | {:<10.10} | {:<21.21} | {:<9.9} | {:<4.4} | {:<46.46} |'.format(date, client, project, task, hours, comment_line))
             first_line = False
-            #else:
-            #    print('| {:<10.10} | {:<10.10} | {:<21.21} | {:<9.9} | {:<4.4} | {:<46.46} |'.format('', '', '', '', '', comment_line))
     print('+------------+------------+-----------------------+-----------+------+------------------------------------------------+')
+
+
+def loadconfig():
+    print('Reading settings from config.txt...')
+    try:
+        f = open('.\\config.txt')
+    except IOError:
+        print('Unable to open config.txt. This file is required. It must be located in the working path and must contain 3 lines: 1st company account name, 2nd username, 3rd password.')
+        print('Exiting!')
+        exit(1)
+    else:
+        with f:
+            account = f.readline().rstrip('\n') 
+            user = f.readline().rstrip('\n') 
+            password = f.readline().rstrip('\n')
+    
+    if not account or not user or not password:
+        print('config.txt must contain 3 lines: 1st company account name, 2nd username, 3rd password. Exiting!')
+        exit(1)
+    
+    return account, user, password
 
 
 class ValidateAddHours(argparse.Action):
@@ -226,13 +244,8 @@ if __name__ == "__main__":
 
     verbose = args.verbose
 
-    print('Reading settings from config.txt...')
-    with open('.\\config.txt') as f:
-        account = f.readline().rstrip('\n') 
-        user = f.readline().rstrip('\n') 
-        password = f.readline().rstrip('\n') 
-
-    guid = login(account, user, password)
+    account, user, password = loadconfig() # load configuration file
+    guid = login(account, user, password) # log in and get the guid used in subsequent API calls
 
     if args.addhours:
         saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'], args.debug)
