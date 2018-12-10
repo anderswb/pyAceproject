@@ -28,7 +28,8 @@ def getetree(function, parameters):
         for k, v in parameters.items():
             if k == 'password':
                 v = '***'
-            print(' - {: <15} {}'.format(k+':', v))
+            print(' - {: <18} {}'.format(k+':', v))
+        print('Data received:\n{}'.format(r.content.decode('utf-8')))
     return ET.fromstring(r.content)
 
 
@@ -48,8 +49,11 @@ def login(account, username, password):
     return guid
 
 
-def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False):
-    print('Adding time to worksheet...')
+def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None, debug_mode=False):
+    if not line_id:
+        print('Adding time to worksheet...')
+    else:
+        print('Editing time entry...')
 
     weekday = date.weekday()+1 if date.weekday() < 6 else 0
     weekstart = datetime.strftime(date - timedelta(days=weekday), '%Y-%m-%d')
@@ -95,6 +99,9 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
     if taskid:
         param_dict['taskid'] = taskid
 
+    if line_id:
+        param_dict['TimesheetLineId'] = line_id
+
     if not debug_mode:
         root = getetree('saveworkitem', param_dict)
         error_description = root.find('row').get('ErrorDescription')
@@ -102,6 +109,7 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, debug_mode=False
             print('Something went wrong when adding the time item, the following error message was returned from the server:\n"{}"'.format(error_description))
     else:
         print("Debug mode enabled, command not sent.")
+        print(param_dict)
 
 
 def getuserid(guid, username):
@@ -163,11 +171,12 @@ def gettimeentries(guid, username, days=30):
     'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
     'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
-    print('+--------+------------+--------------------------+-----------+------+-------------------------------------------------+')
-    print('| Date   | Client     | Project                  | Task      | Hour | Comment                                         |')
-    print('+--------+------------+--------------------------+-----------+------+-------------------------------------------------+')
-    wrapper = textwrap.TextWrapper(width=47)
+    print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
+    print('| ID  | Date | Client   | Project                 | Task    | T  | Comment                                            |')
+    print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
+    wrapper = textwrap.TextWrapper(width=52)
     for child in root:
+        line_id = child.attrib.get('TIMESHEET_LINE_ID', '')
         date_str = child.attrib.get('DATE_WORKED', '')[0:10]
         datetime_obj = datetime.strptime(date_str, '%Y-%m-%d')
         date = datetime.strftime(datetime_obj, '%y%m%d')
@@ -180,10 +189,10 @@ def gettimeentries(guid, username, days=30):
         first_line = True
         for comment_line in comment_wrapped:
             if not first_line:
-                date, client, project, task, hours = ('', '', '', '', '')    
-            print('| {:<6.6} | {:<10.10} | {:<24.24} | {:<9.9} | {:<4.4} | {:<47.47} |'.format(date, client, project, task, hours, comment_line))
+                line_id, date, client, project, task, hours = ('', '', '', '', '', '')
+            print('|{:<5.5}|{:<6.6}|{:<10.10}|{:<25.25}|{:<9.9}|{:<4.4}|{:<52.52}|'.format(line_id, date, client, project, task, hours, comment_line))
             first_line = False
-    print('+--------+------------+--------------------------+-----------+------+-------------------------------------------------+')
+    print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
 
 
 def loadconfig():
@@ -209,8 +218,14 @@ def loadconfig():
 
 class ValidateAddHours(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
-        projectid, taskid, date, time, comment = values
+        if self.dest == 'addhours':
+            projectid, taskid, date, time, comment = values
+            lineid = None
+        else:
+            projectid, taskid, date, time, comment, lineid = values
+
         projectid = int(projectid)
+
         if taskid.upper() == "NA":
             taskid = None
         else:
@@ -231,7 +246,14 @@ class ValidateAddHours(argparse.Action):
 
         if comment == '':
             raise argparse.ArgumentError(self, 'The comment field is empty')
-        values = {'projectid': projectid, 'taskid': taskid, 'date': date, 'time': time, 'comment': comment}
+
+        if lineid:
+            try:
+                lineid = int(lineid)
+            except ValueError:
+                raise argparse.ArgumentError(self, 'LINEID is not a number')
+
+        values = {'projectid': projectid, 'taskid': taskid, 'date': date, 'time': time, 'comment': comment, 'lineid': lineid}
         setattr(args, self.dest, values)
 
 
@@ -242,6 +264,8 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required = True)
     group.add_argument('-a', '--addhours', nargs=5, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD. Comment: The comment line')
+    group.add_argument('-e', '--edithours', nargs=6, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT', 'LINEID'), action=ValidateAddHours,
+    help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
     group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for all future entries and DAYS in the past, for the specified username. Eg. DAYS=10 will get all future entries and for the past 10 days.')
@@ -253,7 +277,9 @@ if __name__ == "__main__":
     guid = login(account, user, password) # log in and get the guid used in subsequent API calls
 
     if args.addhours:
-        saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'], args.debug)
+        saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'], debug_mode=args.debug)
+    if args.edithours:
+        saveworkitem(guid, args.edithours['date'], args.edithours['time'], args.edithours['comment'], args.edithours['projectid'], args.edithours['taskid'], line_id=args.edithours['lineid'], debug_mode=args.debug)
     elif args.projects:
         listprojects(guid, args.projects[0])
     elif args.tasks:
