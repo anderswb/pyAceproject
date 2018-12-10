@@ -4,17 +4,23 @@ import urllib.parse
 from datetime import datetime, timedelta
 import argparse
 import textwrap
+import xml.dom.minidom
 
 VERSION = '0.1'
 
 verbose = False
+debug_mode = False
+
+debug_filename = 'debug_{}_{}.xml'
 
 
 def getetree(function, parameters):
     parameters['fct'] = function
+
     if 'format' not in parameters:
         parameters['format'] = 'xml'
     url = 'http://api.aceproject.com/?{}'.format(urllib.parse.urlencode(parameters))
+    
     try:
         r = requests.get(url)
         r.raise_for_status()
@@ -23,13 +29,21 @@ def getetree(function, parameters):
         print(e)
         print("Exiting!")
         exit(1)
+    
     if verbose:
         print('Parameters sent:')
         for k, v in parameters.items():
             if k == 'password':
                 v = '***'
             print(' - {: <18} {}'.format(k+':', v))
-        print('Data received:\n{}'.format(r.content.decode('utf-8')))
+    if debug_mode:
+        xml_str = xml.dom.minidom.parseString(r.content.decode('utf-8'))
+        pretty_xml_as_string = xml_str.toprettyxml()
+        filename = debug_filename.format(parameters['fct'], datetime.strftime(datetime.now(), '%y%m%d-%H%M%S%f')).lower()
+        with open(filename, 'w') as f:
+            print('Saving received xml data to {}'.format(filename))
+            f.write(pretty_xml_as_string)
+    
     return ET.fromstring(r.content)
 
 
@@ -49,7 +63,7 @@ def login(account, username, password):
     return guid
 
 
-def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None, debug_mode=False):
+def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None):
     if not line_id:
         print('Adding time to worksheet...')
     else:
@@ -272,14 +286,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     verbose = args.verbose
+    debug_mode = args.debug
 
     account, user, password = loadconfig() # load configuration file
     guid = login(account, user, password) # log in and get the guid used in subsequent API calls
 
     if args.addhours:
-        saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'], debug_mode=args.debug)
+        saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'])
     if args.edithours:
-        saveworkitem(guid, args.edithours['date'], args.edithours['time'], args.edithours['comment'], args.edithours['projectid'], args.edithours['taskid'], line_id=args.edithours['lineid'], debug_mode=args.debug)
+        saveworkitem(guid, args.edithours['date'], args.edithours['time'], args.edithours['comment'], args.edithours['projectid'], args.edithours['taskid'], line_id=args.edithours['lineid'])
     elif args.projects:
         listprojects(guid, args.projects[0])
     elif args.tasks:
