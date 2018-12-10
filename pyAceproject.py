@@ -14,6 +14,13 @@ debug_mode = False
 debug_filename = 'debug_{}_{}.xml'
 
 
+def print_parameters(parameters):
+    for k, v in parameters.items():
+        if k == 'password':
+            v = '***'
+        print(' - {: <18} {}'.format(k+':', v))
+
+
 def getetree(function, parameters):
     parameters['fct'] = function
 
@@ -32,10 +39,7 @@ def getetree(function, parameters):
     
     if verbose:
         print('Parameters sent:')
-        for k, v in parameters.items():
-            if k == 'password':
-                v = '***'
-            print(' - {: <18} {}'.format(k+':', v))
+        print_parameters(parameters)
     if debug_mode:
         xml_str = xml.dom.minidom.parseString(r.content.decode('utf-8'))
         pretty_xml_as_string = xml_str.toprettyxml()
@@ -69,45 +73,28 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None):
     else:
         print('Editing time entry...')
 
+    # get the weekday of the passed date and convert it to sunday=0 and friday=6
     weekday = date.weekday()+1 if date.weekday() < 6 else 0
+
+    # get the start date of the week as a aceproject timestamp
     weekstart = datetime.strftime(date - timedelta(days=weekday), '%Y-%m-%d')
 
-    hoursday = dict()
-    hoursday['sun'] = 0
-    hoursday['mon'] = 0
-    hoursday['tue'] = 0
-    hoursday['wed'] = 0
-    hoursday['thu'] = 0
-    hoursday['fri'] = 0
-    hoursday['sat'] = 0
-
-    if weekday == 0: # sunday
-        hoursday['sun'] = hours
-    elif weekday == 1: # monday
-        hoursday['mon'] = hours
-    elif weekday == 2:
-        hoursday['tue'] = hours
-    elif weekday == 3:
-        hoursday['wed'] = hours
-    elif weekday == 4:
-        hoursday['thu'] = hours
-    elif weekday == 5:
-        hoursday['fri'] = hours
-    elif weekday == 6:
-        hoursday['sat'] = hours
+    # add the hours to the correct weekday
+    hours_per_day = [0, 0, 0, 0, 0, 0, 0, 0]
+    hours_per_day[weekday] = hours
 
     param_dict = {
     'guid': guid,
     'weekstart': weekstart,
     'projectid': projectid,
     'timetypeid': 1, # TODO: make dynamic
-    'hoursday1': hoursday['sun'],
-    'hoursday2': hoursday['mon'],
-    'hoursday3': hoursday['tue'],
-    'hoursday4': hoursday['wed'],
-    'hoursday5': hoursday['thu'],
-    'hoursday6': hoursday['fri'],
-    'hoursday7': hoursday['sat'],
+    'hoursday1': hours_per_day[0],
+    'hoursday2': hours_per_day[1],
+    'hoursday3': hours_per_day[2],
+    'hoursday4': hours_per_day[3],
+    'hoursday5': hours_per_day[4],
+    'hoursday6': hours_per_day[5],
+    'hoursday7': hours_per_day[6],
     'comments': comment}
 
     if taskid:
@@ -122,8 +109,10 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None):
         if error_description:
             print('Something went wrong when adding the time item, the following error message was returned from the server:\n"{}"'.format(error_description))
     else:
-        print("Debug mode enabled, command not sent.")
-        print(param_dict)
+        print('Debug mode enabled, command not sent.')
+        if verbose:
+            print('Would have sent the following parameters:')
+            print_parameters(param_dict)
 
 
 def getuserid(guid, username):
@@ -236,7 +225,7 @@ class ValidateAddHours(argparse.Action):
             projectid, taskid, date, time, comment = values
             lineid = None
         else:
-            projectid, taskid, date, time, comment, lineid = values
+            lineid, projectid, taskid, date, time, comment = values
 
         projectid = int(projectid)
 
@@ -278,7 +267,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required = True)
     group.add_argument('-a', '--addhours', nargs=5, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
     help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD. Comment: The comment line')
-    group.add_argument('-e', '--edithours', nargs=6, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT', 'LINEID'), action=ValidateAddHours,
+    group.add_argument('-e', '--edithours', nargs=6, metavar=('LINEID', 'PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
     help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
@@ -295,11 +284,11 @@ if __name__ == "__main__":
         saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'])
     if args.edithours:
         saveworkitem(guid, args.edithours['date'], args.edithours['time'], args.edithours['comment'], args.edithours['projectid'], args.edithours['taskid'], line_id=args.edithours['lineid'])
-    elif args.projects:
+    if args.projects:
         listprojects(guid, args.projects[0])
-    elif args.tasks:
+    if args.tasks:
         listtasks(guid, args.tasks[0])
-    elif args.log:
+    if args.log:
         gettimeentries(guid, args.log[0], int(args.log[1]))
 
     print('Done')
