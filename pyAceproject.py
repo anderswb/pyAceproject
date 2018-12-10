@@ -18,7 +18,7 @@ def print_parameters(parameters):
     for k, v in parameters.items():
         if k == 'password':
             v = '***'
-        print(' - {: <18} {}'.format(k+':', v))
+        print(' - {: <18} {}'.format(k + ':', v))
 
 
 def getetree(function, parameters):
@@ -74,7 +74,7 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None):
         print('Editing time entry...')
 
     # get the weekday of the passed date and convert it to sunday=0 and friday=6
-    weekday = date.weekday()+1 if date.weekday() < 6 else 0
+    weekday = date.weekday() + 1 if date.weekday() < 6 else 0
 
     # get the start date of the week as a aceproject timestamp
     weekstart = datetime.strftime(date - timedelta(days=weekday), '%Y-%m-%d')
@@ -172,7 +172,7 @@ def gettimeentries(guid, username, days=30):
         'FilterMyWorkItems': 'False',
         'FilterTimeCreatorUserId': userid,
         'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
-        'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
+        'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10 * 356), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
     print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
     print('| ID  | Date | Client   | Project                 | Task    | T  | Comment                                            |')
