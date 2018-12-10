@@ -27,7 +27,7 @@ def getetree(function, parameters):
     if 'format' not in parameters:
         parameters['format'] = 'xml'
     url = 'http://api.aceproject.com/?{}'.format(urllib.parse.urlencode(parameters))
-    
+
     try:
         r = requests.get(url)
         r.raise_for_status()
@@ -36,7 +36,7 @@ def getetree(function, parameters):
         print(e)
         print("Exiting!")
         exit(1)
-    
+
     if verbose:
         print('Parameters sent:')
         print_parameters(parameters)
@@ -47,16 +47,16 @@ def getetree(function, parameters):
         with open(filename, 'w') as f:
             print('Saving received xml data to {}'.format(filename))
             f.write(pretty_xml_as_string)
-    
+
     return ET.fromstring(r.content)
 
 
 def login(account, username, password):
     print('Logging into account: \"{}\" using username: \"{}\"'.format(account, username))
     param_dict = {
-    'accountid': account,
-    'username': username,
-    'password': password}
+        'accountid': account,
+        'username': username,
+        'password': password}
     root = getetree('login', param_dict)
     guid = root.find('row').get('GUID')
     if not guid:
@@ -84,18 +84,18 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None):
     hours_per_day[weekday] = hours
 
     param_dict = {
-    'guid': guid,
-    'weekstart': weekstart,
-    'projectid': projectid,
-    'timetypeid': 1, # TODO: make dynamic
-    'hoursday1': hours_per_day[0],
-    'hoursday2': hours_per_day[1],
-    'hoursday3': hours_per_day[2],
-    'hoursday4': hours_per_day[3],
-    'hoursday5': hours_per_day[4],
-    'hoursday6': hours_per_day[5],
-    'hoursday7': hours_per_day[6],
-    'comments': comment}
+        'guid': guid,
+        'weekstart': weekstart,
+        'projectid': projectid,
+        'timetypeid': 1,  # TODO: make dynamic
+        'hoursday1': hours_per_day[0],
+        'hoursday2': hours_per_day[1],
+        'hoursday3': hours_per_day[2],
+        'hoursday4': hours_per_day[3],
+        'hoursday5': hours_per_day[4],
+        'hoursday6': hours_per_day[5],
+        'hoursday7': hours_per_day[6],
+        'comments': comment}
 
     if taskid:
         param_dict['taskid'] = taskid
@@ -118,8 +118,8 @@ def saveworkitem(guid, date, hours, comment, projectid, taskid, line_id=None):
 def getuserid(guid, username):
     print('Getting userid for {}'.format(username))
     param_dict = {
-    'guid': guid,
-    'FilterUserName': username}
+        'guid': guid,
+        'FilterUserName': username}
     root = getetree('getusers', param_dict)
     userid = root.find('row').get('USER_ID')
     if verbose:
@@ -131,10 +131,10 @@ def listprojects(guid, username):
     userid = getuserid(guid, username)
     print('Getting all active projects for user {} with id {}'.format(username, userid))
     param_dict = {
-    'guid': guid,
-    'Filterassigneduserid': userid,
-    'Filtercompletedproject': 'False',
-    'SortOrder': 'PROJECT_ID'}
+        'guid': guid,
+        'Filterassigneduserid': userid,
+        'Filtercompletedproject': 'False',
+        'SortOrder': 'PROJECT_ID'}
     root = getetree('getprojects', param_dict)
     print('+--------+------------------------------------------------------------------------------------------------------------+')
     print('| ID     | Project name                                                                                               |')
@@ -149,9 +149,9 @@ def listprojects(guid, username):
 def listtasks(guid, projectid):
     print('Listing tasks for projectid {}'.format(projectid))
     param_dict = {
-    'guid': guid,
-    'projectid': projectid,
-    'forcombo': 'true'}
+        'guid': guid,
+        'projectid': projectid,
+        'forcombo': 'true'}
     root = getetree('gettasks', param_dict)
     print('+--------+------------------------------------------------------------------------------------------------------------+')
     print('| ID     | Task name                                                                                                  |')
@@ -167,12 +167,12 @@ def gettimeentries(guid, username, days=30):
     userid = getuserid(guid, username)
     print('Getting time entries for {} days.'.format(days))
     param_dict = {
-    'guid': guid,
-    'View': 1,
-    'FilterMyWorkItems': 'False',
-    'FilterTimeCreatorUserId': userid,
-    'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
-    'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
+        'guid': guid,
+        'View': 1,
+        'FilterMyWorkItems': 'False',
+        'FilterTimeCreatorUserId': userid,
+        'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
+        'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10*356), '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
     print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
     print('| ID  | Date | Client   | Project                 | Task    | T  | Comment                                            |')
@@ -208,14 +208,14 @@ def loadconfig():
         exit(1)
     else:
         with f:
-            account = f.readline().rstrip('\n') 
-            user = f.readline().rstrip('\n') 
+            account = f.readline().rstrip('\n')
+            user = f.readline().rstrip('\n')
             password = f.readline().rstrip('\n')
-    
+
     if not account or not user or not password:
         print('config.txt must contain 3 lines: 1st company account name, 2nd username, 3rd password. Exiting!')
         exit(1)
-    
+
     return account, user, password
 
 
@@ -236,7 +236,7 @@ class ValidateAddHours(argparse.Action):
                 taskid = int(taskid)
             except ValueError:
                 raise argparse.ArgumentError(self, 'taskid is not a number or "NA"')
-        
+
         try:
             date = datetime.strptime(date, '%y%m%d')
         except ValueError:
@@ -264,11 +264,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aceproject command line interface v" + VERSION + " by Anders Winther Brandt 2018")
     parser.add_argument('-g', '--debug', help='Do not store any values', action="store_true")
     parser.add_argument('-v', '--verbose', help='Print more information', action="store_true")
-    group = parser.add_mutually_exclusive_group(required = True)
+    group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-a', '--addhours', nargs=5, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
-    help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD. Comment: The comment line')
+                       help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD. Comment: The comment line')
     group.add_argument('-e', '--edithours', nargs=6, metavar=('LINEID', 'PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
-    help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
+                       help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
     group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for all future entries and DAYS in the past, for the specified username. Eg. DAYS=10 will get all future entries and for the past 10 days.')
@@ -277,8 +277,8 @@ if __name__ == "__main__":
     verbose = args.verbose
     debug_mode = args.debug
 
-    account, user, password = loadconfig() # load configuration file
-    guid = login(account, user, password) # log in and get the guid used in subsequent API calls
+    account, user, password = loadconfig()  # load configuration file
+    guid = login(account, user, password)  # log in and get the guid used in subsequent API calls
 
     if args.addhours:
         saveworkitem(guid, args.addhours['date'], args.addhours['time'], args.addhours['comment'], args.addhours['projectid'], args.addhours['taskid'])
