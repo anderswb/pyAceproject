@@ -121,6 +121,9 @@ def getuserid(guid, username):
         'guid': guid,
         'FilterUserName': username}
     root = getetree('getusers', param_dict)
+    if not root:
+        print('Unable to find a userid for {}. Check the username and try again. Exiting!'.format(username))
+        exit(1)
     userid = root.find('row').get('USER_ID')
     if verbose:
         print('Got userid {}'.format(userid))
@@ -136,14 +139,17 @@ def listprojects(guid, username):
         'Filtercompletedproject': 'False',
         'SortOrder': 'PROJECT_ID'}
     root = getetree('getprojects', param_dict)
-    print('+--------+------------------------------------------------------------------------------------------------------------+')
-    print('| ID     | Project name                                                                                               |')
-    print('+--------+------------------------------------------------------------------------------------------------------------+')
-    for child in root:
-        id = child.attrib.get('PROJECT_ID', '')
-        name = child.attrib.get('PROJECT_NAME', '')
-        print('| {:<6.6} | {:<106} |'.format(id, name))
-    print('+--------+------------------------------------------------------------------------------------------------------------+')
+    if len(root) == 0:
+        print('No active projects found')
+    else:
+        print('+--------+------------------------------------------------------------------------------------------------------------+')
+        print('| ID     | Project name                                                                                               |')
+        print('+--------+------------------------------------------------------------------------------------------------------------+')
+        for child in root:
+            id = child.attrib.get('PROJECT_ID', '')
+            name = child.attrib.get('PROJECT_NAME', '')
+            print('| {:<6.6} | {:<106} |'.format(id, name))
+        print('+--------+------------------------------------------------------------------------------------------------------------+')
 
 
 def listtasks(guid, projectid):
@@ -153,14 +159,17 @@ def listtasks(guid, projectid):
         'projectid': projectid,
         'forcombo': 'true'}
     root = getetree('gettasks', param_dict)
-    print('+--------+------------------------------------------------------------------------------------------------------------+')
-    print('| ID     | Task name                                                                                                  |')
-    print('+--------+------------------------------------------------------------------------------------------------------------+')
-    for child in root:
-        id = child.attrib.get('TASK_ID', '')
-        resume = child.attrib.get('TASK_RESUME', '')
-        print('| {:<6.6} | {:<106} |'.format(id, resume))
-    print('+--------+------------------------------------------------------------------------------------------------------------+')
+    if len(root) == 0:
+        print('No tasks found for the given projectid')
+    else:
+        print('+--------+------------------------------------------------------------------------------------------------------------+')
+        print('| ID     | Task name                                                                                                  |')
+        print('+--------+------------------------------------------------------------------------------------------------------------+')
+        for child in root:
+            id = child.attrib.get('TASK_ID', '')
+            resume = child.attrib.get('TASK_RESUME', '')
+            print('| {:<6.6} | {:<106} |'.format(id, resume))
+        print('+--------+------------------------------------------------------------------------------------------------------------+')
 
 
 def gettimeentries(guid, username, days=30):
