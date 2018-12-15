@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import argparse
 import textwrap
 import xml.dom.minidom
+from decimal import *
 
 VERSION = '0.1'
 
@@ -174,19 +175,49 @@ def listtasks(guid, projectid):
 
 def gettimeentries(guid, username, days=30):
     userid = getuserid(guid, username)
-    print('Getting time entries for {} days.'.format(days))
+
+    if isinstance(days, int) or (isinstance(days, str) and days.isdigit()):
+        print('Getting time entries for {} days in the past, and all future entries.'.format(days))
+        datetimefrom = datetime.today() - timedelta(days=int(days))
+        datetimeto = datetime.today() + timedelta(days=10 * 356)
+    else:
+        if days == 'month':
+            print('Getting time entries for this month.')
+            datetimefrom = datetime.today().replace(day=1)
+            next_month = datetime.today().replace(day=28) + timedelta(days=4)
+            datetimeto = next_month - timedelta(days=next_month.day)
+        elif days == 'lastmonth':
+            print('Getting time entries for last month.')
+            datetimefrom = (datetime.today().replace(day=1) - timedelta(days=1)).replace(day=1)
+            datetimeto = datetime.today().replace(day=1) - timedelta(days=1)
+        elif days == 'week':
+            print('Getting time entries for this week.')
+            datetimefrom = datetime.today() - timedelta(days=datetime.today().weekday())
+            datetimeto = datetimefrom + timedelta(days=6)
+        elif days == 'lastweek':
+            print('Getting time entries for last week.')
+            datetimefrom = datetime.today() - timedelta(days=datetime.today().weekday() + 7)
+            datetimeto = datetimefrom + timedelta(days=6)
+        else:
+            print('Unknown days string. Exiting!')
+            exit(1)
+
+    print('Start date: {}'.format(datetime.strftime(datetimefrom, '%y%m%d')))
+    print('End date:   {}'.format(datetime.strftime(datetimeto, '%y%m%d')))
+
     param_dict = {
         'guid': guid,
         'View': 1,
         'FilterMyWorkItems': 'False',
         'FilterTimeCreatorUserId': userid,
-        'FilterDateFrom': datetime.strftime(datetime.today() - timedelta(days=days), '%Y-%m-%d'),
-        'FilterDateTo': datetime.strftime(datetime.today() + timedelta(days=10 * 356), '%Y-%m-%d')}
+        'FilterDateFrom': datetime.strftime(datetimefrom, '%Y-%m-%d'),
+        'FilterDateTo': datetime.strftime(datetimeto, '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
     print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
     print('| ID  | Date | Client   | Project                 | Task    | T  | Comment                                            |')
     print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
-    wrapper = textwrap.TextWrapper(width=52)
+    wrapper = textwrap.TextWrapper(width=51)
+    hourssum = Decimal(0.0)
     for child in root:
         line_id = child.attrib.get('TIMESHEET_LINE_ID', '')
         date_str = child.attrib.get('DATE_WORKED', '')[0:10]
@@ -196,15 +227,18 @@ def gettimeentries(guid, username, days=30):
         project = child.attrib.get('PROJECT_NAME', '')
         task = child.attrib.get('TASK_RESUME', '')
         hours = child.attrib.get('TOTAL', '')
+        hourssum = hourssum + Decimal(hours)
         comment = child.attrib.get('COMMENT', '-')
         comment_wrapped = wrapper.wrap(comment)
         first_line = True
         for comment_line in comment_wrapped:
             if not first_line:
                 line_id, date, client, project, task, hours = ('', '', '', '', '', '')
-            print('|{:<5.5}|{:<6.6}|{:<10.10}|{:<25.25}|{:<9.9}|{:<4.4}|{:<52.52}|'.format(line_id, date, client, project, task, hours, comment_line))
+            print('|{:<5.5}|{:<6.6}|{:<10.10}|{:<25.25}|{:<9.9}|{:<5.5}|{:<51.51}|'.format(line_id, date, client, project, task, hours, comment_line))
             first_line = False
-    print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
+    print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
+    print('|     |      |          |                         |         |{:<5.5}|                                                   |'.format(hourssum))
+    print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
 
 
 def loadconfig():
@@ -280,7 +314,7 @@ if __name__ == "__main__":
                        help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
-    group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries for all future entries and DAYS in the past, for the specified username. Eg. DAYS=10 will get all future entries and for the past 10 days.')
+    group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries log for the specified username. Set DAYS to an integer to get the amount of days in the past, and any future entries. Eg. DAYS=10 will get all future entries and for the past 10 days. Set DAYS to "week", "lastweek", "month" or "lastmonth" to get the entries for this week, last week, this month or the last month.')
     args = parser.parse_args()
 
     verbose = args.verbose
@@ -298,6 +332,6 @@ if __name__ == "__main__":
     if args.tasks:
         listtasks(guid, args.tasks[0])
     if args.log:
-        gettimeentries(guid, args.log[0], int(args.log[1]))
+        gettimeentries(guid, args.log[0], args.log[1])
 
     print('Done')
