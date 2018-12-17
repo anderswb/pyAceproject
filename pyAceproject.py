@@ -213,9 +213,9 @@ def gettimeentries(guid, username, days=30):
         'FilterDateFrom': datetime.strftime(datetimefrom, '%Y-%m-%d'),
         'FilterDateTo': datetime.strftime(datetimeto, '%Y-%m-%d')}
     root = getetree('GetTimeReport', param_dict)
-    print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
-    print('| ID  | Date | Client   | Project                 | Task    | T  | Comment                                            |')
-    print('+-----+------+----------+-------------------------+---------+----+----------------------------------------------------+')
+    print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
+    print('|ID   |Date  |Client    |Project                  |Task     |Time |Comment                                            |')
+    print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
     wrapper = textwrap.TextWrapper(width=51)
     hourssum = Decimal(0.0)
     for child in root:
@@ -237,8 +237,9 @@ def gettimeentries(guid, username, days=30):
             print('|{:<5.5}|{:<6.6}|{:<10.10}|{:<25.25}|{:<9.9}|{:<5.5}|{:<51.51}|'.format(line_id, date, client, project, task, hours, comment_line))
             first_line = False
     print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
-    print('|     |      |          |                         |         |{:<5.5}|                                                   |'.format(hourssum))
-    print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
+    daygenerator = (datetimefrom + timedelta(x + 1) for x in range((datetimeto - datetimefrom).days + 1))
+    workdays = sum(1 for day in daygenerator if day.weekday() < 5)
+    print('In {} workdays {} hours was logged'.format(workdays, hourssum))
 
 
 def loadconfig():
