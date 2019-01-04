@@ -22,6 +22,16 @@ def print_parameters(parameters):
         print(' - {: <18} {}'.format(k + ':', v))
 
 
+def workdays_in_range(datefrom, dateto):
+    if not datefrom or not dateto:
+        return 0
+    datefrom = datefrom.replace(hour=12, minute=0)
+    dateto = dateto.replace(hour=13, minute=0)
+    daygenerator = (datefrom + timedelta(x + 0) for x in range((dateto - datefrom).days + 1))
+    workdays = sum(1 for day in daygenerator if day.weekday() < 5)
+    return workdays
+
+
 def getetree(function, parameters):
     parameters['fct'] = function
 
@@ -218,6 +228,7 @@ def gettimeentries(guid, username, days=30):
     print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
     wrapper = textwrap.TextWrapper(width=51)
     hourssum = Decimal(0.0)
+    datetime_obj = None
     for child in root:
         line_id = child.attrib.get('TIMESHEET_LINE_ID', '')
         date_str = child.attrib.get('DATE_WORKED', '')[0:10]
@@ -237,9 +248,7 @@ def gettimeentries(guid, username, days=30):
             print('|{:<5.5}|{:<6.6}|{:<10.10}|{:<25.25}|{:<9.9}|{:<5.5}|{:<51.51}|'.format(line_id, date, client, project, task, hours, comment_line))
             first_line = False
     print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
-    daygenerator = (datetimefrom + timedelta(x + 1) for x in range((datetimeto - datetimefrom).days + 1))
-    workdays = sum(1 for day in daygenerator if day.weekday() < 5)
-    print('In {} workdays {} hours was logged'.format(workdays, hourssum))
+    print('In {} ({}) workdays {} hours was logged'.format(workdays_in_range(datetimefrom, datetimeto), workdays_in_range(datetimefrom, datetime_obj), hourssum))
 
 
 def loadconfig():
