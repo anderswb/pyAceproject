@@ -212,9 +212,6 @@ def gettimeentries(guid, username, days=30):
             print('Unknown days string. Exiting!')
             exit(1)
 
-    print('Start date: {}'.format(datetime.strftime(datetimefrom, '%y%m%d')))
-    print('End date:   {}'.format(datetime.strftime(datetimeto, '%y%m%d')))
-
     param_dict = {
         'guid': guid,
         'View': 1,
@@ -248,7 +245,14 @@ def gettimeentries(guid, username, days=30):
             print('|{:<5.5}|{:<6.6}|{:<10.10}|{:<25.25}|{:<9.9}|{:<5.5}|{:<51.51}|'.format(line_id, date, client, project, task, hours, comment_line))
             first_line = False
     print('+-----+------+----------+-------------------------+---------+-----+---------------------------------------------------+')
-    print('In {} ({}) workdays {} hours was logged'.format(workdays_in_range(datetimefrom, datetimeto), workdays_in_range(datetimefrom, datetime_obj), hourssum))
+    print('{} hours was logged in the time period'.format(hourssum))
+
+    # if in the current month or week, change the range to the last entry
+    if days == 'month' or days == 'week':
+        datetimeto = datetime_obj
+    workdays =  workdays_in_range(datetimefrom, datetimeto)
+    if datetimeto:
+        print('In the date range {} to {} there\'s {} work days, averaging {:.3} hours worked per day'.format(datetime.strftime(datetimefrom, '%y%m%d'), datetime.strftime(datetimeto, '%y%m%d'), workdays, hourssum/workdays))
 
 
 def loadconfig():
