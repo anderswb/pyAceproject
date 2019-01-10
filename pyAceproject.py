@@ -294,10 +294,13 @@ class ValidateAddHours(argparse.Action):
             except ValueError:
                 raise argparse.ArgumentError(self, 'taskid is not a number or "NA"')
 
-        try:
-            date = datetime.strptime(date, '%y%m%d')
-        except ValueError:
-            raise argparse.ArgumentError(self, 'Date is not of the format YYMMDD, or the day does not exist')
+        if date.lower() != "today":
+            try:
+                date = datetime.strptime(date, '%y%m%d')
+            except ValueError:
+                raise argparse.ArgumentError(self, 'Date is not of the format YYMMDD, not "today" or the day does not exist.')
+        else:
+            date = datetime.today()
 
         try:
             time = float(time)
@@ -323,7 +326,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', help='Print more information', action="store_true")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-a', '--addhours', nargs=5, metavar=('PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
-                       help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD. Comment: The comment line')
+                       help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD, set to "today" to add the entry for the current date. Comment: The comment line')
     group.add_argument('-e', '--edithours', nargs=6, metavar=('LINEID', 'PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
                        help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
