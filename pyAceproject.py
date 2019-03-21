@@ -255,6 +255,23 @@ def gettimeentries(guid, username, days=30):
         print('In the date range {} to {} there\'s {} work days, averaging {:.3} hours worked per day'.format(datetime.strftime(datetimefrom, '%y%m%d'), datetime.strftime(datetimeto, '%y%m%d'), workdays, hourssum/workdays))
 
 
+def deletehours(guid, lineid):
+    print('Deleting time entry {}...'.format(lineid))
+    param_dict = {
+        'guid': guid,
+        'TimesheetLineId': lineid}
+
+    if not debug_mode:
+        root = getetree('deleteworkitem', param_dict)
+        error_description = root.find('row').get('ErrorDescription')
+        if error_description:
+            print('Something went wrong, the following error was returned from the server:\n"{}"'.format(error_description))
+    else:
+        print('Debug mode enabled, command not sent.')
+        if verbose:
+            print('Would have sent the following parameters:')
+            print_parameters(param_dict)
+
 def loadconfig():
     print('Reading settings from config.txt...')
     try:
@@ -329,6 +346,7 @@ if __name__ == "__main__":
                        help='Add a new time entry. projectid: ID of the project to add the hours to. taskid: The ID of the task to add the hours to, set to NA to not assign a task. data: The date in the format YYMMDD, set to "today" to add the entry for the current date. Comment: The comment line')
     group.add_argument('-e', '--edithours', nargs=6, metavar=('LINEID', 'PROJECTID', 'TASKID', 'DATE', 'TIME', 'COMMENT'), action=ValidateAddHours,
                        help='Edit an existing time entry. Same parameters as for --addhours, but with the addition LINEID parameters, as can be found in the log')
+    group.add_argument('-d', '--deletehours', nargs=1, type=int, metavar=('LINEID'), help="Delete the time entry with the passed LINEID number")
     group.add_argument('-p', '--projects', nargs=1, type=str, metavar=('USERNAME'), help="Get a list of active project for the given username")
     group.add_argument('-t', '--tasks', nargs=1, type=int, metavar=('PROJECTID'), help="Get a list of all tasks for a given project ID")
     group.add_argument('-l', '--log', nargs=2, metavar=('USERNAME', 'DAYS'), help='Get all time entries log for the specified username. Set DAYS to an integer to get the amount of days in the past, and any future entries. Eg. DAYS=10 will get all future entries and for the past 10 days. Set DAYS to "week", "lastweek", "month" or "lastmonth" to get the entries for this week, last week, this month or the last month.')
@@ -350,5 +368,7 @@ if __name__ == "__main__":
         listtasks(guid, args.tasks[0])
     if args.log:
         gettimeentries(guid, args.log[0], args.log[1])
+    if args.deletehours:
+        deletehours(guid, args.deletehours[0])
 
     print('Done')
